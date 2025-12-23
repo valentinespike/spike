@@ -1,0 +1,50 @@
+name: Run Colab Notebook in GitHub Actions
+
+on:
+  workflow_dispatch:
+    inputs:
+      notebook:
+        description: "Notebook path in repo"
+        required: false
+        default: "notebooks/Untitled12.ipynb"
+      parameters_json:
+        description: 'Optional JSON parameters for Papermill (e.g. {"QUESTION":"R&D사업"})'
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 1 * * *"  # daily 10:00 KST (UTC 01:00)
+
+jobs:
+  run-notebook:
+    runs-on: ubuntu-latest
+    env:
+      # If your notebook uses Mistral, set this secret in repo Settings → Secrets and variables → Actions
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute notebook
+        run: |
+          python scripts/run_notebook.py \
+            --notebook "${{ inputs.notebook }}" \
+            --output "outputs/executed.ipynb" \
+            --parameters_json '${{ inputs.parameters_json }}'
+
+      - name: Upload outputs (executed notebook + any generated files)
+        uses: actions/upload-artifact@v4
+        with:
+          name: notebook-outputs
+          path: outputs/
